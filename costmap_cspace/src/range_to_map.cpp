@@ -1,4 +1,3 @@
-
 #include <ros/ros.h>
 #include <nav_msgs/OccupancyGrid.h>
 #include <sensor_msgs/point_cloud2_iterator.h>
@@ -15,20 +14,21 @@
 
 class RangeSensor
 {
-    public:
-        ros::NodeHandle nh;
-        ros::Subscriber sub;
-        sensor_msgs::Range msg;
-        RangeSensor(std::string sensorTopic)
-        {
-            nh = ros::NodeHandle();
-            sub = nh.subscribe(sensorTopic, 20, &RangeSensor::callback, this);
-        }
+public:
+  ros::NodeHandle nh;
+  ros::Subscriber sub;
+  sensor_msgs::Range msg;
+  RangeSensor(std::string sensorTopic)
+  {
+    nh = ros::NodeHandle();
+    sub = nh.subscribe(sensorTopic, 20, &RangeSensor::callback, this);
+  }
 
-    private:
-        void callback(const sensor_msgs::Range& msg){
-            this->msg = msg;
-        }
+private:
+  void callback(const sensor_msgs::Range& msg)
+  {
+    this->msg = msg;
+  }
 };
 
 class RangeToMapNode
@@ -56,13 +56,10 @@ private:
 
 public:
   std::vector<boost::shared_ptr<RangeSensor> > range_sensors;
-  //ros::Publisher pointcloud_pub;
+  // ros::Publisher pointcloud_pub;
   double hz;
 
-  RangeToMapNode()
-    : nh_()
-    , pnh_("~")
-    , tfl_(tfbuf_)
+  RangeToMapNode() : nh_(), pnh_("~"), tfl_(tfbuf_)
   {
     neonavigation_common::compat::checkCompatMode();
     pnh_.param("global_frame", global_frame_, std::string("map"));
@@ -72,9 +69,7 @@ public:
     pnh_.param("accum_duration", accum_duration, 1.0);
     accum_.reset(ros::Duration(accum_duration));
 
-    pub_map_ = neonavigation_common::compat::advertise<nav_msgs::OccupancyGrid>(
-        nh_, "map_local",
-        pnh_, "map", 1, true);
+    pub_map_ = neonavigation_common::compat::advertise<nav_msgs::OccupancyGrid>(nh_, "map_local", pnh_, "map", 1, true);
 
     int width_param;
     pnh_.param("width", width_param, 30);
@@ -93,81 +88,88 @@ public:
     /* get sensors from param */
     std::vector<std::string> sensor_topic_list;
     pnh_.getParam("sensor_topic_list", sensor_topic_list);
-    if (sensor_topic_list.size() == 0) ROS_WARN("no range sensor configured");
+    if (sensor_topic_list.size() == 0)
+      ROS_WARN("no range sensor configured");
 
-    for (int i=0; i<sensor_topic_list.size(); i++){
-        boost::shared_ptr<RangeSensor> range_sensor(new RangeSensor(sensor_topic_list[i]));
-        range_sensors.push_back(range_sensor);
+    for (int i = 0; i < sensor_topic_list.size(); i++)
+    {
+      boost::shared_ptr<RangeSensor> range_sensor(new RangeSensor(sensor_topic_list[i]));
+      range_sensors.push_back(range_sensor);
     }
 
-    //pointcloud_pub = nh_.advertise<sensor_msgs::PointCloud2> ("/test_point", 3);
+    // pointcloud_pub = nh_.advertise<sensor_msgs::PointCloud2> ("/test_point", 3);
   }
 
-  void update(){
+  void update()
+  {
     /* convert sensor_msgs/Range to sensor_msgs/PointCloud2 */
     pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloud(new pcl::PointCloud<pcl::PointXYZ>());
     pointCloud->header.frame_id = robot_frame_;
     pointCloud->height = 1;
     pointCloud->points.clear();
-    for (int i=0; i<range_sensors.size(); i++){
-        sensor_msgs::Range range_msg = range_sensors[i]->msg;
+    for (int i = 0; i < range_sensors.size(); i++)
+    {
+      sensor_msgs::Range range_msg = range_sensors[i]->msg;
 
-        if(range_msg.range < 0 || range_msg.range >= range_msg.max_range)
-            continue;
+      if (range_msg.range < 0 || range_msg.range >= range_msg.max_range)
+        continue;
 
-        geometry_msgs::TransformStamped transform;
-        try{
-            transform = tfbuf_.lookupTransform(pointCloud->header.frame_id, range_msg.header.frame_id, ros::Time(0));
-        }
-        catch (tf2::TransformException& e){
-            ROS_WARN("%s", e.what());
-            continue;
-        }
+      geometry_msgs::TransformStamped transform;
+      try
+      {
+        transform = tfbuf_.lookupTransform(pointCloud->header.frame_id, range_msg.header.frame_id, ros::Time(0));
+      }
+      catch (tf2::TransformException& e)
+      {
+        ROS_WARN("%s", e.what());
+        continue;
+      }
 
-        geometry_msgs::PointStamped pt;
-        pt.point.x = range_msg.range;
-        geometry_msgs::PointStamped pointOut;
-        tf2::doTransform(pt, pointOut, transform);
+      geometry_msgs::PointStamped pt;
+      pt.point.x = range_msg.range;
+      geometry_msgs::PointStamped pointOut;
+      tf2::doTransform(pt, pointOut, transform);
 
-        pcl::PointXYZ pcl_point;
-        pcl_point.x = pointOut.point.x;
-        pcl_point.y = pointOut.point.y;
-        pcl_point.z = pointOut.point.z;
-        pointCloud->points.push_back(pcl_point);
-        ++(pointCloud->width);
+      pcl::PointXYZ pcl_point;
+      pcl_point.x = pointOut.point.x;
+      pcl_point.y = pointOut.point.y;
+      pcl_point.z = pointOut.point.z;
+      pointCloud->points.push_back(pcl_point);
+      ++(pointCloud->width);
     }
-    //pointcloud_pub.publish(pointCloud);
+    // pointcloud_pub.publish(pointCloud);
 
     /* Load pointcloud to map */
     sensor_msgs::PointCloud2 cloud;
     pcl::toROSMsg(*pointCloud, cloud);
     sensor_msgs::PointCloud2 cloud_global;
     geometry_msgs::TransformStamped trans;
-    try{
-        trans = tfbuf_.lookupTransform(global_frame_, cloud.header.frame_id, cloud.header.stamp, ros::Duration(0.5));
+    try
+    {
+      trans = tfbuf_.lookupTransform(global_frame_, cloud.header.frame_id, cloud.header.stamp, ros::Duration(0.5));
     }
     catch (tf2::TransformException& e)
     {
-        ROS_WARN("%s", e.what());
-        return;
+      ROS_WARN("%s", e.what());
+      return;
     }
     tf2::doTransform(cloud, cloud_global, trans);
-    accum_.push(costmap_cspace::PointcloudAccumurator<sensor_msgs::PointCloud2>::Points(
-        cloud_global, cloud_global.header.stamp));
+    accum_.push(costmap_cspace::PointcloudAccumurator<sensor_msgs::PointCloud2>::Points(cloud_global,
+                                                                                        cloud_global.header.stamp));
     try
     {
-        tf2::Stamped<tf2::Transform> trans;
-        tf2::fromMsg(tfbuf_.lookupTransform(global_frame_, robot_frame_, ros::Time(0)), trans);
+      tf2::Stamped<tf2::Transform> trans;
+      tf2::fromMsg(tfbuf_.lookupTransform(global_frame_, robot_frame_, ros::Time(0)), trans);
 
-        auto pos = trans.getOrigin();
-        float x = static_cast<int>(pos.x() / map.info.resolution) * map.info.resolution;
-        float y = static_cast<int>(pos.y() / map.info.resolution) * map.info.resolution;
-        map.info.origin.position.x = x - map.info.width * map.info.resolution * 0.5;
-        map.info.origin.position.y = y - map.info.height * map.info.resolution * 0.5;
-        map.info.origin.position.z = 0.0;
-        map.info.origin.orientation.w = 1.0;
-        origin_x_ = x - width_ * map.info.resolution * 0.5;
-        origin_y_ = y - height_ * map.info.resolution * 0.5;
+      auto pos = trans.getOrigin();
+      float x = static_cast<int>(pos.x() / map.info.resolution) * map.info.resolution;
+      float y = static_cast<int>(pos.y() / map.info.resolution) * map.info.resolution;
+      map.info.origin.position.x = x - map.info.width * map.info.resolution * 0.5;
+      map.info.origin.position.y = y - map.info.height * map.info.resolution * 0.5;
+      map.info.origin.position.z = 0.0;
+      map.info.origin.orientation.w = 1.0;
+      origin_x_ = x - width_ * map.info.resolution * 0.5;
+      origin_y_ = y - height_ * map.info.resolution * 0.5;
     }
     catch (tf2::TransformException& e)
     {
@@ -183,10 +185,8 @@ public:
       auto itr_y = sensor_msgs::PointCloud2ConstIterator<float>(pc, "y");
       for (; itr_x != itr_x.end(); ++itr_x, ++itr_y)
       {
-        unsigned int x = int(
-            (*itr_x - map.info.origin.position.x) / map.info.resolution);
-        unsigned int y = int(
-            (*itr_y - map.info.origin.position.y) / map.info.resolution);
+        unsigned int x = int((*itr_x - map.info.origin.position.x) / map.info.resolution);
+        unsigned int y = int((*itr_y - map.info.origin.position.y) / map.info.resolution);
         if (x >= map.info.width || y >= map.info.height)
           continue;
         map.data[x + y * map.info.width] = 100;
@@ -194,7 +194,6 @@ public:
     }
     pub_map_.publish(map);
   }
-
 };
 
 int main(int argc, char** argv)
@@ -206,7 +205,8 @@ int main(int argc, char** argv)
   ros::AsyncSpinner spinner(1);
   spinner.start();
 
-  while(ros::ok()){
+  while (ros::ok())
+  {
     conv.update();
     rate.sleep();
   }
