@@ -12,7 +12,6 @@
 #include <costmap_cspace/pointcloud_accumulator.h>
 #include <neonavigation_common/compatibility.h>
 
-
 class RangeToMapNode
 {
 private:
@@ -40,7 +39,6 @@ private:
   costmap_cspace::PointcloudAccumurator<sensor_msgs::PointCloud2> accum_;
 
 public:
-
   RangeToMapNode() : nh_(), pnh_("~"), tfl_(tfbuf_)
   {
     neonavigation_common::compat::checkCompatMode();
@@ -89,7 +87,8 @@ public:
     pointCloud->header.frame_id = robot_frame_;
     pointCloud->height = 1;
     pointCloud->points.clear();
-    if (!(range->range < 0 || range->range >= range->max_range)){
+    if (!(range->range < 0 || range->range >= range->max_range))
+    {
       geometry_msgs::TransformStamped transform;
       try
       {
@@ -132,8 +131,8 @@ public:
                                                                                         cloud_global.header.stamp));
 
     ros::Time now = range->header.stamp;
-    if(published_ + publish_interval_ > now)
-        return;
+    if (published_ + publish_interval_ > now)
+      return;
     published_ = now;
 
     try
