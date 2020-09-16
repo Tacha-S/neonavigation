@@ -7,6 +7,7 @@ set(CATKIN_DEPENDS
   geometry_msgs
   laser_geometry
   nav_msgs
+  pcl_ros
   sensor_msgs
   tf2_geometry_msgs
   tf2_ros
@@ -48,6 +49,10 @@ add_dependencies(pointcloud2_to_map ${catkin_EXPORTED_TARGETS})
 add_executable(largemap_to_map src/largemap_to_map.cpp)
 target_link_libraries(largemap_to_map ${catkin_LIBRARIES})
 add_dependencies(largemap_to_map ${catkin_EXPORTED_TARGETS})
+
+add_executable(range_to_map src/range_to_map.cpp)
+target_link_libraries(range_to_map ${catkin_LIBRARIES})
+add_dependencies(range_to_map ${catkin_EXPORTED_TARGETS})
 
 
 if(CATKIN_ENABLE_TESTING)
