@@ -12,24 +12,6 @@
 #include <costmap_cspace/pointcloud_accumulator.h>
 #include <neonavigation_common/compatibility.h>
 
-class RangeSensor
-{
-public:
-  ros::NodeHandle nh;
-  ros::Subscriber sub;
-  sensor_msgs::Range msg;
-  RangeSensor(std::string sensorTopic)
-  {
-    nh = ros::NodeHandle();
-    sub = nh.subscribe(sensorTopic, 20, &RangeSensor::callback, this);
-  }
-
-private:
-  void callback(const sensor_msgs::Range& msg)
-  {
-    this->msg = msg;
-  }
-};
 
 class RangeToMapNode
 {
@@ -37,6 +19,8 @@ private:
   ros::NodeHandle nh_;
   ros::NodeHandle pnh_;
   ros::Publisher pub_map_;
+  // ros::Publisher pointcloud_pub;
+  std::vector<ros::Subscriber> sub_range_;
 
   nav_msgs::OccupancyGrid map;
   tf2_ros::Buffer tfbuf_;
@@ -51,13 +35,11 @@ private:
   unsigned int height_;
   float origin_x_;
   float origin_y_;
+  double hz;
 
   costmap_cspace::PointcloudAccumurator<sensor_msgs::PointCloud2> accum_;
 
 public:
-  std::vector<boost::shared_ptr<RangeSensor> > range_sensors;
-  // ros::Publisher pointcloud_pub;
-  double hz;
 
   RangeToMapNode() : nh_(), pnh_("~"), tfl_(tfbuf_)
   {
@@ -91,51 +73,43 @@ public:
     if (sensor_topic_list.size() == 0)
       ROS_WARN("no range sensor configured");
 
+    sub_range_.resize(sensor_topic_list.size());
     for (int i = 0; i < sensor_topic_list.size(); i++)
     {
-      boost::shared_ptr<RangeSensor> range_sensor(new RangeSensor(sensor_topic_list[i]));
-      range_sensors.push_back(range_sensor);
+      sub_range_.push_back(nh_.subscribe(sensor_topic_list[i], 20, &RangeToMapNode::cbRange, this));
     }
 
     // pointcloud_pub = nh_.advertise<sensor_msgs::PointCloud2> ("/test_point", 3);
   }
 
-  void update()
+  void cbRange(const sensor_msgs::Range::ConstPtr& range)
   {
     /* convert sensor_msgs/Range to sensor_msgs/PointCloud2 */
     pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloud(new pcl::PointCloud<pcl::PointXYZ>());
     pointCloud->header.frame_id = robot_frame_;
     pointCloud->height = 1;
     pointCloud->points.clear();
-    for (int i = 0; i < range_sensors.size(); i++)
-    {
-      sensor_msgs::Range range_msg = range_sensors[i]->msg;
-
-      if (range_msg.range < 0 || range_msg.range >= range_msg.max_range)
-        continue;
-
+    if (!(range->range < 0 || range->range >= range->max_range)){
       geometry_msgs::TransformStamped transform;
       try
       {
-        transform = tfbuf_.lookupTransform(pointCloud->header.frame_id, range_msg.header.frame_id, ros::Time(0));
+        transform = tfbuf_.lookupTransform(pointCloud->header.frame_id, range->header.frame_id, ros::Time(0));
+        geometry_msgs::PointStamped pt;
+        pt.point.x = range->range;
+        geometry_msgs::PointStamped pointOut;
+        tf2::doTransform(pt, pointOut, transform);
+
+        pcl::PointXYZ pcl_point;
+        pcl_point.x = pointOut.point.x;
+        pcl_point.y = pointOut.point.y;
+        pcl_point.z = pointOut.point.z;
+        pointCloud->points.push_back(pcl_point);
+        ++(pointCloud->width);
       }
       catch (tf2::TransformException& e)
       {
         ROS_WARN("%s", e.what());
-        continue;
       }
-
-      geometry_msgs::PointStamped pt;
-      pt.point.x = range_msg.range;
-      geometry_msgs::PointStamped pointOut;
-      tf2::doTransform(pt, pointOut, transform);
-
-      pcl::PointXYZ pcl_point;
-      pcl_point.x = pointOut.point.x;
-      pcl_point.y = pointOut.point.y;
-      pcl_point.z = pointOut.point.z;
-      pointCloud->points.push_back(pcl_point);
-      ++(pointCloud->width);
     }
     // pointcloud_pub.publish(pointCloud);
 
@@ -156,6 +130,12 @@ public:
     tf2::doTransform(cloud, cloud_global, trans);
     accum_.push(costmap_cspace::PointcloudAccumurator<sensor_msgs::PointCloud2>::Points(cloud_global,
                                                                                         cloud_global.header.stamp));
+
+    ros::Time now = range->header.stamp;
+    if(published_ + publish_interval_ > now)
+        return;
+    published_ = now;
+
     try
     {
       tf2::Stamped<tf2::Transform> trans;
@@ -201,16 +181,7 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "range_to_map");
 
   RangeToMapNode conv;
-  ros::Rate rate(conv.hz);
-  ros::AsyncSpinner spinner(1);
-  spinner.start();
-
-  while (ros::ok())
-  {
-    conv.update();
-    rate.sleep();
-  }
-  spinner.stop();
+  ros::spin();
 
   return 0;
 }
