@@ -1420,7 +1420,27 @@ public:
         if (act_->isActive())
         {
           move_base_msgs::MoveBaseFeedback feedback;
-          feedback.base_position = start_;
+          geometry_msgs::PoseStamped robot;
+          robot.header.frame_id = robot_frame_;
+          robot.header.stamp = ros::Time::now();
+          robot.pose.orientation.x = 0.0;
+          robot.pose.orientation.y = 0.0;
+          robot.pose.orientation.z = 0.0;
+          robot.pose.orientation.w = 1.0;
+          robot.pose.position.x = 0;
+          robot.pose.position.y = 0;
+          robot.pose.position.z = 0;
+          try
+          {
+            geometry_msgs::TransformStamped trans =
+                tfbuf_.lookupTransform(map_header_.frame_id, robot_frame_, ros::Time(), ros::Duration(0.1));
+            tf2::doTransform(robot, robot, trans);
+            feedback.base_position = robot;
+          }
+          catch (tf2::TransformException& e)
+          {
+          }
+
           act_->publishFeedback(feedback);
         }
 
