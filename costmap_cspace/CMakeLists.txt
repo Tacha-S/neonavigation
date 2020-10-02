@@ -12,6 +12,7 @@ set(CATKIN_DEPENDS
   tf2_geometry_msgs
   tf2_ros
   tf2_sensor_msgs
+  people_msgs
 
   costmap_cspace_msgs
   neonavigation_common
@@ -50,6 +51,10 @@ add_executable(largemap_to_map src/largemap_to_map.cpp)
 target_link_libraries(largemap_to_map ${catkin_LIBRARIES})
 add_dependencies(largemap_to_map ${catkin_EXPORTED_TARGETS})
 
+add_executable(ignore_people_map src/ignore_people_map.cpp)
+target_link_libraries(ignore_people_map ${catkin_LIBRARIES})
+add_dependencies(ignore_people_map ${catkin_EXPORTED_TARGETS})
+
 add_executable(range_to_map src/range_to_map.cpp)
 target_link_libraries(range_to_map ${catkin_LIBRARIES})
 add_dependencies(range_to_map ${catkin_EXPORTED_TARGETS})
@@ -70,6 +75,7 @@ install(TARGETS
     largemap_to_map
     laserscan_to_map
     pointcloud2_to_map
+    ignore_people_map
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
