@@ -55,6 +55,10 @@ add_executable(ignore_people_map src/ignore_people_map.cpp)
 target_link_libraries(ignore_people_map ${catkin_LIBRARIES})
 add_dependencies(ignore_people_map ${catkin_EXPORTED_TARGETS})
 
+add_executable(people_to_map src/people_to_map.cpp)
+target_link_libraries(people_to_map ${catkin_LIBRARIES})
+add_dependencies(people_to_map ${catkin_EXPORTED_TARGETS})
+
 add_executable(range_to_map src/range_to_map.cpp)
 target_link_libraries(range_to_map ${catkin_LIBRARIES})
 add_dependencies(range_to_map ${catkin_EXPORTED_TARGETS})
@@ -76,6 +80,7 @@ install(TARGETS
     laserscan_to_map
     pointcloud2_to_map
     ignore_people_map
+    people_to_map
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
